@@ -1,0 +1,153 @@
+0. Interface Setting
+    sudo vim /etc/network/interfaces
+        auto enp0s3
+        iface enp0s3 inet static
+        address 192.168.58.42
+        netmask 255.255.255.0
+
+I. Apache Web Server :
+    # Installation
+        sudo apt install apache2 libapache2-mod-php7.0
+
+    # Website
+        mkdir /var/www/yacyncherradi.net
+        chown user:www-data /var/www/yacyncherradi.net
+        chmod 750 /var/www/yacyncherradi.net
+        mkdir /var/www/yacyncherradi.net/public_html
+        cd  /var/www/yacyncherradi.net/public_html
+        echo "Yacyn CHERRADI's homepage !" >index.html
+        echo "<?php echo phpinfo(); " >info.php
+
+    # Listen
+        vim /etc/apache2/ports.conf
+            <IfModule ssl_module>
+	            Listen 127.0.0.1:44344
+            </IfModule>
+
+    # HTTPS
+        mkdir /etc/apache2/ssl
+        cd /etc/apache2/ssl
+        openssl req -x509 -nodes -days 90 -newkey rsa:2048 -keyout ssl.key -out ssl.crt
+
+        vim /etc/apache2/sites-available/yacyncherradi.net.conf
+            <VirtualHost 127.0.0.1:44344>
+                ServerName  192.168.58.42
+                ServerAdmin admin@yacyncherradi.net
+                DirectoryIndex  index.php index.html
+                DocumentRoot    /var/www/yacyncherradi.net/public_html
+
+                SSLEngine   on
+                SSLCertificateFile  /etc/apache2/ssl/ssl.crt
+                SSLCertificateKeyFile   /etc/apache2/ssl/ssl.key            
+
+                ErrorLog    ${APACHE_LOG_DIR}/error.log
+                CustomLog   ${APACHE_LOG_DIR}/access.log combined
+            </VirtualHost>        
+        a2enmod ssl
+        a2dissite 000-default.conf        
+        a2ensite yacyncherradi.net.conf
+        systemctl restart apache2
+
+    # Verification
+        curl -Ik https://127.0.0.1:44344/
+            # k (--insecure) : turns off curl's verification of the certificate
+        wget --no-check-certificate https://127.0.0.1:44344/info.php
+
+II. Nginx RP : 
+    # Installation
+        sudo apt install nginx php7.0-fpm
+    
+    # The RP
+        mkdir /etc/nginx/ssl
+        cd /etc/nginx/ssl
+        openssl req -x509 -nodes -days 90 -newkey rsa:2048 -keyout self.key -out self.crt
+
+        vim /etc/nginx/nginx.conf
+            user www-data;
+            worker_processes auto;
+
+            events {
+	            worker_connections 1024;
+            }
+
+            http {
+	            include mime.types;
+                    
+	            server {
+		            listen  80;
+		            server_name 192.168.58.42;
+		            return 301 https://$host$request_uri;
+	            }
+
+	            server {
+		            listen 443 ssl http2;
+		            ssl_certificate /etc/nginx/ssl/self.crt;
+		            ssl_certificate_key /etc/nginx/ssl/self.key;
+		            
+		            location / {
+			            proxy_pass "https://127.0.0.1:44344/";
+		            }
+	            }
+            }
+
+        nginx -t
+        systemctl restart nginx
+
+III. DNS Server
+    mkdir /etc/bind/yacyncherradi.net
+    cd /etc/bind/yacyncherradi.net
+    vim db.yacyncherradi.net
+        ;
+        ; BIND data file for yacyncherradi.net
+        ;
+        $TTL	604800
+        @	IN	SOA	yacyncherradi.net. root.yacyncherradi.net. (
+		                  2		; Serial
+		             604800		; Refresh
+		              86400		; Retry
+		            2419200		; Expire
+		             604800 )	; Negative Cache TTL
+        ;
+        @	IN	NS	ns.yacyncherradi.net.
+        @	IN	A	192.168.58.42
+        ns	IN	A	192.168.58.42
+        www	IN	CNAME	ns
+    
+    vim db.192
+        ;
+        ; BIND reverse data file for yacyncherradi.net
+        ;
+        $TTL	604800
+        @	IN	SOA	yacyncherradi.net. root.yacyncherradi.net. (
+		                  1		; Serial
+		             604800		; Refresh
+		              86400		; Retry
+		            2419200		; Expire
+		             604800 )	; Negative Cache TTL
+        ;
+        @	IN	NS	ns.
+        42	IN	PTR	ns.yacyncherradi.net.
+
+    vim /etc/bind/named.conf.local
+        zone "yacyncherradi.net" {
+            type master;
+            file "/etc/bind/yacyncherradi.net/db.yacyncherradi.net";
+        };
+
+        zone "58.168.192.in-addr.arpa" {
+            type master;
+            file "/etc/bind/yacyncherradi.net/db.192";
+        };
+
+    systemctl restart bind9
+    ping yacyncherradi.net
+
+
+    # Verification (@Client)
+        vim /etc/resolv.conf
+            nameserver 192.168.58.42
+            search yacyncherradi.net
+
+
+
+

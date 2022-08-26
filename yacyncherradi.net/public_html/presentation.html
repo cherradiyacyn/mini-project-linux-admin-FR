@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mise en place de Reverse Proxy Nginx</title>
+    <style type="text/css">
+		h2 {
+            background-color: #d6f0f8;
+        }
+        h3, th {
+            background-color: #dedede;
+        }
+        h4 {
+            background-color: #eee192;
+        }
+        td, th {
+			border: solid black .1em;
+			padding: 1em;
+		}
+		table {
+			border-collapse: collapse;
+		}
+        video, img {
+            border: solid #dedede .1em;
+        }
+        header img {
+            border: none;
+        }
+        header {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content:space-between;
+            align-items: center;
+        }
+	</style>
+</head>
+<body>
+    <header>
+        <img src="media/ucam.png" alt="logo">
+        <div>
+            <h1>Mini-projet - Mise en place de Reverse Proxy Nginx</h1>
+                <table>
+                    <tr>
+                        <th>Encadrement</th>
+                        <td>Professeur My. El Mehdi BOUHAMIDI</td>
+                    </tr>
+                    <tr>
+                        <th>Réalisation</th>
+                        <td>Yassine CHERRADI</td>
+                    </tr>
+                </table>
+        </div>
+    </header>
+    <main>
+        <h2>I. Définition :</h2>
+            <dl>
+                <dt>serveur mandataire (n.m.)</dt>
+                <dd>1.dispositif informatique associé à un serveur et réalisant, pour des applications autorisées, des fonctions de médiation, telle que le stockage des documents les plus fréquemment demandés ou l'établissement de passerelles.</dd>
+            </dl>
+
+        <h2>II. Types :</h2>
+            <h3>1. Reverse proxy :</h3>
+                <p>
+                    Un Reverse proxy est un point de connexion intermédiaire situé à la périphérie d'un réseau.
+                    Il reçoit les demandes de connexion HTTP initiales, agissant comme le point d'extrémité réel.
+                </p>
+                <p>
+                    Essentiellement le flic de trafic de votre réseau, le Reverse proxy sert de passerelle entre les utilisateurs et le serveur d'origine de votre application. 
+                    Ce faisant, il assure la gestion de toutes les politiques et l'acheminement du trafic.
+                </p>
+                <h4>1.1. Fonctionnement :</h4>
+                <ol>
+                    <li>Réception d'une demande de connexion d'un utilisateur</li>
+                    <li>Achever une poignée de main TCP à trois voies, mettre fin à la connexion initiale</li>
+                    <li>Connexion avec le serveur d'origine et transmission de la demande originale</li>
+                </ol>
+                <p><img src="media/reverse-proxy.jpg" alt="reverse-proxy"></p>
+            
+            <h3>2. Forward proxy :</h3>
+                <p>
+                    En revanche, un Forward proxy est également placé à la périphérie de votre réseau, mais il régule le trafic sortant en fonction de politiques prédéfinies dans les réseaux partagés. 
+                    En outre, il dissimule l'adresse IP d'un client et bloque le trafic entrant malveillant.
+                </p>
+                <p>Les Forward proxy sont généralement utilisés en interne par les grandes organisations, telles que les universités et les entreprises.</p>
+                <h4>2.1. Usage :</h4>
+                <ul>
+                    <li>Empêcher les employés de visiter certains sites web</li>
+                    <li>Surveiller l'activité en ligne des employés</li>
+                    <li>Empêcher le trafic malveillant d'atteindre un serveur d'origine</li>
+                    <li>Améliorer l'expérience de l'utilisateur en mettant en cache le contenu des sites externes</li>
+                </ul>
+                <p><img src="media/forward-proxy.jpg" alt="forward-proxy"></p>
+        
+        <h2>III. Comparatif RP Apache / RP Nginx :</h2>
+            <h3>1. A propos d'Nginx :</h3>
+            <div>
+                <video
+                    src="media/about-nginx.mp4"
+                    width="854"
+                    height="480"
+                    controls>
+                </video>
+            </div>
+
+            <h3>2. Nginx vs. Apache :</h3>
+            <div>
+                <video
+                    src="media/nginx-vs-apache.mp4"
+                    width="854"
+                    height="480"
+                    controls>
+                </video>
+            </div>
+        
+        <h2>IV. Atelier Pratique :</h2>
+            <h3>1. Environnement :</h3>
+                <h4>1.1. Caractéristiques :</h4>
+                    <table>
+                        <tr>
+                            <th>Environnement de virtualisation</th>
+                            <th>Environnement de déploiment</th>
+                            <th>Addresse du réseau</th>
+                            <th>Type d'adapteur réseau de la VM</th>
+                            <th>Addresse IP du Serveur</th>
+                        </tr>
+                        <tr>
+                            <td>VirtualBox 6.1.10 Ubuntu</td>
+                            <td><a href="http://releases.ubuntu.com/16.04/">Ubuntu 16.04.7 LTS</a></td>
+                            <td>192.168.58.0/24</td>
+                            <td>Host-only Adapter, 'vboxnet' - Paravirtualized Network (virtio-net)</td>
+                            <td>192.168.58.42</td>
+                        </tr>
+                    </table>
+                <h4>1.2. Dépendances :</h4>
+<pre>
+    <code>
+        sudo apt-get install apache2 php7.0 libapache2-mod-php7.0 nginx php7.0-fpm bind9
+    </code>
+</pre>
+            <h3>2. Configuration :</h3>
+                <h4>2.1. Réglage de l'interface réseau :</h4>
+<pre>
+    <code>
+        sudo vim /etc/network/interfaces
+            auto enp0s3
+            iface enp0s3 inet static
+            address 192.168.58.42
+            netmask 255.255.255.0
+    </code>
+</pre>
+                <h4>2.2. Apache :</h4>
+<pre>
+    <code>
+        mkdir /var/www/yacyncherradi.net
+        chown user:www-data /var/www/yacyncherradi.net
+        chmod 750 /var/www/yacyncherradi.net
+        mkdir /var/www/yacyncherradi.net/public_html
+        cd  /var/www/yacyncherradi.net/public_html
+        echo "Yacyn CHERRADI's homepage !" &gt; index.html
+        echo "&lt;?php echo phpinfo(); " &gt; info.php
+
+        vim /etc/apache2/ports.conf
+            &lt;IfModule ssl_module&gt;
+	            Listen 127.0.0.1:44344
+            &lt;/IfModule&gt;
+
+        mkdir /etc/apache2/ssl
+        cd /etc/apache2/ssl
+        openssl req -x509 -nodes -days 90 -newkey rsa:2048 -keyout ssl.key -out ssl.crt
+
+        vim /etc/apache2/sites-available/yacyncherradi.net.conf
+            &lt;VirtualHost 127.0.0.1:44344&gt;
+                ServerName  192.168.58.42
+                ServerAdmin admin@yacyncherradi.net
+                DirectoryIndex  index.php index.html
+                DocumentRoot    /var/www/yacyncherradi.net/public_html
+
+                SSLEngine   on
+                SSLCertificateFile  /etc/apache2/ssl/ssl.crt
+                SSLCertificateKeyFile   /etc/apache2/ssl/ssl.key            
+
+                ErrorLog    ${APACHE_LOG_DIR}/error.log
+                CustomLog   ${APACHE_LOG_DIR}/access.log combined
+            &lt;/VirtualHost&gt;      
+        a2enmod ssl
+        a2dissite 000-default.conf        
+        a2ensite yacyncherradi.net.conf
+        systemctl restart apache2
+
+        curl -Ik https://127.0.0.1:44344/ # k (--insecure) : turns off curl's verification of the certificate
+        wget --no-check-certificate https://127.0.0.1:44344/info.php
+    </code>
+</pre>
+
+                <h4>2.3. Nginx :</h4>
+<pre>
+    <code>
+        mkdir /etc/nginx/ssl
+        cd /etc/nginx/ssl
+        openssl req -x509 -nodes -days 90 -newkey rsa:2048 -keyout self.key -out self.crt
+        
+        vim /etc/nginx/nginx.conf
+            user www-data;
+            worker_processes auto;
+
+            events {
+                worker_connections 1024;
+            }
+
+            http {
+                include mime.types;
+                    
+                server {
+                    listen  80;
+                    server_name 192.168.58.42;
+                    return 301 https://$host$request_uri;
+                }
+
+                server {
+                    listen 443 ssl http2;
+                    ssl_certificate /etc/nginx/ssl/self.crt;
+                    ssl_certificate_key /etc/nginx/ssl/self.key;
+                    
+                    location / {
+                        proxy_pass "https://127.0.0.1:44344/";
+                    }
+                }
+            }
+
+        nginx -t
+        systemctl restart nginx
+    </code>
+</pre>                
+
+                <h4>2.4. DNS :</h4>
+<pre>
+    <code>
+        mkdir /etc/bind/yacyncherradi.net
+        cd /etc/bind/yacyncherradi.net
+        vim db.yacyncherradi.net
+            ;
+            ; BIND data file for yacyncherradi.net
+            ;
+            $TTL	604800
+            @	IN	SOA	yacyncherradi.net. root.yacyncherradi.net. (
+			                  2		; Serial
+			             604800		; Refresh
+			              86400		; Retry
+			            2419200		; Expire
+			             604800 )	; Negative Cache TTL
+            ;
+            @	IN	NS	ns.yacyncherradi.net.
+            @	IN	A	192.168.58.42
+            ns	IN	A	192.168.58.42
+            www	IN	CNAME	ns
+        
+        
+        vim db.192
+            ;
+            ; BIND reverse data file for yacyncherradi.net
+            ;
+            $TTL	604800
+            @	IN	SOA	yacyncherradi.net. root.yacyncherradi.net. (
+			                  1		; Serial
+			             604800		; Refresh
+			              86400		; Retry
+			            2419200		; Expire
+			             604800 )	; Negative Cache TTL
+            ;
+            @	IN	NS	ns.
+            42	IN	PTR	ns.yacyncherradi.net.
+
+        
+        vim /etc/bind/named.conf.local
+            zone "yacyncherradi.net" {
+                type master;
+                file "/etc/bind/yacyncherradi.net/db.yacyncherradi.net";
+            };
+
+            zone "58.168.192.in-addr.arpa" {
+                type master;
+                file "/etc/bind/yacyncherradi.net/db.192";
+            };
+
+        systemctl restart bind9
+        ping yacyncherradi.net
+    </code>
+</pre>
+
+                <h4>2.5. Verification (@Client)</h4>
+<pre>
+    <code>
+        vim /etc/resolv.conf
+            nameserver 192.168.58.42
+            search yacyncherradi.net
+        
+        ping yacyncherradi.net
+    </code>
+</pre>
+
+        <h2>V. Sources :</h2>
+            <ol>
+                <li><a href="http://dictionnaire.sensagent.leparisien.fr/PROXY/fr-fr/">Sensagent Dictionnaires - définition, synonyme et encyclopédie : Proxy</a></li>
+                <li><a href="https://www.imperva.com/learn/performance/reverse-proxy/">Imperva Learning Center : Reverse Proxy</a></li>
+                <li><a href="https://www.udemy.com/share/101X7qAEEaeV1aTX0E/">NGINX Fundamentals: High Performance Servers from Scratch</a></li>
+                <li><a href="https://httpd.apache.org/docs/2.4/">Apache HTTP Server Version 2.4 Documentation</a></li>
+                <li><a href="https://nginx.org/en/docs/">nginx documentation</a></li>
+            </ol>
+    </main>
+</body>
+</html>
